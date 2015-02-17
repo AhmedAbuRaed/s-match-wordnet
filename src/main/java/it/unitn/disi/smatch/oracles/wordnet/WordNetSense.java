@@ -32,7 +32,7 @@ public class WordNetSense extends Sense implements Serializable {
      * @param synset synset
      */
     public WordNetSense(Synset synset) {
-        super(synset.getPOS().getKey() + "#" + synset.getOffset());
+        super(Long.parseLong(synset.getPOS().getKey().replaceAll("[^0-9]+", "") + "00" + synset.getOffset()),"en");
         this.synset = synset;
     }
 

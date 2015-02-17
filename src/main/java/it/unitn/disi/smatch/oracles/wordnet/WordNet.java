@@ -5,6 +5,8 @@ import it.unitn.disi.common.utils.MiscUtils;
 import it.unitn.disi.smatch.SMatchException;
 import it.unitn.disi.smatch.data.ling.ISense;
 import it.unitn.disi.smatch.data.mappings.IMappingElement;
+import it.unitn.disi.smatch.data.trees.IContext;
+import it.unitn.disi.smatch.data.trees.INode;
 import it.unitn.disi.smatch.oracles.ILinguisticOracle;
 import it.unitn.disi.smatch.oracles.ISenseMatcher;
 import it.unitn.disi.smatch.oracles.LinguisticOracleException;
@@ -42,7 +44,7 @@ public class WordNet implements ILinguisticOracle, ISenseMatcher {
     private final Dictionary dic;
 
     // contains all the multiwords in WordNet
-    private final Map<String, List<List<String>>> multiwords;
+    private final Map<String, ArrayList<ArrayList<String>>> multiwords;
 
     private final Map<String, Character> sensesCache = new ConcurrentHashMap<>();
 
@@ -97,7 +99,7 @@ public class WordNet implements ILinguisticOracle, ISenseMatcher {
         }
     }
 
-    public List<ISense> getSenses(String label) throws LinguisticOracleException {
+    public List<ISense> getSenses(String label, String language) throws LinguisticOracleException {
         List<ISense> result = Collections.emptyList();
         try {
             IndexWordSet lemmas = dic.lookupAllIndexWords(label);
@@ -118,7 +120,7 @@ public class WordNet implements ILinguisticOracle, ISenseMatcher {
         return result;
     }
 
-    public List<String> getBaseForms(String derivation) throws LinguisticOracleException {
+    public List<String> getBaseForms(String derivation, String language) throws LinguisticOracleException {
         try {
             List<String> result = new ArrayList<>();
             IndexWordSet tmp = dic.lookupAllIndexWords(derivation);
@@ -151,7 +153,7 @@ public class WordNet implements ILinguisticOracle, ISenseMatcher {
         }
     }
 
-    public boolean isEqual(String str1, String str2) throws LinguisticOracleException {
+    public boolean isEqual(String str1, String str2, String language) throws LinguisticOracleException {
         try {
             IndexWordSet lemmas1 = dic.lookupAllIndexWords(str1);
             IndexWordSet lemmas2 = dic.lookupAllIndexWords(str2);
@@ -377,7 +379,7 @@ public class WordNet implements ILinguisticOracle, ISenseMatcher {
         return false;
     }
 
-    public ISense createSense(String id) throws LinguisticOracleException {
+    public ISense createSense(String id, String language) throws LinguisticOracleException {
         if (id.length() < 3 || 1 != id.indexOf('#')) {
             throw new LinguisticOracleException("Malformed sense id: " + id);
         }
@@ -397,8 +399,19 @@ public class WordNet implements ILinguisticOracle, ISenseMatcher {
         }
     }
 
-    public List<List<String>> getMultiwords(String beginning) throws LinguisticOracleException {
+    public ArrayList<ArrayList<String>> getMultiwords(String beginning, String language) throws LinguisticOracleException {
         return multiwords.get(beginning);
+    }
+
+    @Override
+    public String detectLanguage(IContext context) {
+        //False value but WordNet don't deal with other languages
+        return "en";
+    }
+
+    @Override
+    public void readMultiwords(String language) {
+
     }
 
     /**
@@ -458,9 +471,9 @@ public class WordNet implements ILinguisticOracle, ISenseMatcher {
      * @throws SMatchException SMatchException
      */
     @SuppressWarnings("unchecked")
-    private static Map<String, List<List<String>>> readHash(String url) throws SMatchException {
+    private static Map<String, ArrayList<ArrayList<String>>> readHash(String url) throws SMatchException {
         try {
-            return (Map<String, List<List<String>>>) MiscUtils.readObject(url);
+            return (Map<String, ArrayList<ArrayList<String>>>) MiscUtils.readObject(url);
         } catch (DISIException e) {
             throw new SMatchException(e.getMessage(), e);
         }
@@ -481,9 +494,9 @@ public class WordNet implements ILinguisticOracle, ISenseMatcher {
         log.info("Done");
     }
 
-    private static Map<String, List<List<String>>> createMultiwordHash(Dictionary dic) throws SMatchException {
+    private static Map<String, ArrayList<ArrayList<String>>> createMultiwordHash(Dictionary dic) throws SMatchException {
         log.info("Creating multiword hash...");
-        Map<String, List<List<String>>> result = new HashMap<>();
+        Map<String, ArrayList<ArrayList<String>>> result = new HashMap<>();
         POS[] parts = new POS[]{POS.NOUN, POS.ADJECTIVE, POS.VERB, POS.ADVERB};
         for (POS pos : parts) {
             collectMultiwords(dic, result, pos);
@@ -500,7 +513,7 @@ public class WordNet implements ILinguisticOracle, ISenseMatcher {
         }
     }
 
-    private static void collectMultiwords(Dictionary dic, Map<String, List<List<String>>> multiwords, POS pos) throws SMatchException {
+    private static void collectMultiwords(Dictionary dic, Map<String, ArrayList<ArrayList<String>>> multiwords, POS pos) throws SMatchException {
         try {
             int count = 0;
             Iterator i = dic.getIndexWordIterator(pos);
@@ -513,11 +526,11 @@ public class WordNet implements ILinguisticOracle, ISenseMatcher {
                         log.debug("multiwords: " + count);
                     }
                     String[] tokens = lemma.split(" ");
-                    List<List<String>> mwEnds = multiwords.get(tokens[0]);
+                    ArrayList<ArrayList<String>> mwEnds = multiwords.get(tokens[0]);
                     if (null == mwEnds) {
                         mwEnds = new ArrayList<>();
                     }
-                    List<String> currentMWEnd = new ArrayList<>(Arrays.asList(tokens));
+                    ArrayList<String> currentMWEnd = new ArrayList<>(Arrays.asList(tokens));
                     currentMWEnd.remove(0);
                     mwEnds.add(currentMWEnd);
                     multiwords.put(tokens[0], mwEnds);
